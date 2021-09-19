@@ -29,8 +29,6 @@
 clear all 
 close all
 
-% load nifti functions
-addpath nifti
 
 %% Download Pretrained Network and Sample Test Set
 % Optionally, download a pretrained version of 3-D U-Net and five sample test 
@@ -90,123 +88,19 @@ pxdsTest = pixelLabelDatastore(lblLocTest,classNames,pixelLabelID, ...
 % labels back to the categorical data type, specifying the original pixel label 
 % IDs and class names.
 
-id=1;
      V = niftiread('ICBM_Template.nii.gz');
      brain = zeros(181,217,181,4);
      brain(:,:,:,1) = V;
      brain(:,:,:,2) = V;
      brain(:,:,:,3) = V;
      brain(:,:,:,4) = V;
-    % brain = brain(:,18:198,:,:);
-     brain = brain(59:122,77:140,59:122,:);
-while hasdata(voldsTest)
-    disp(['Processing test volume ' num2str(id)])
-    
-    tempGroundTruth = read(pxdsTest);
-    groundTruthLabels{id} =  tempGroundTruth{1};
-    
-   %  vol{id} = read(voldsTest);
+     brainpatch = brain(49:49+64-1,67:67+64-1,49:49+64-1,:);
+     size(brainpatch)
+     analyzeNetwork(net)
+     tempSeg = semanticseg(brainpatch,net);
 
- %    vol{id} = niftiread('ICBM_Template.nii.gz');
-     vol{id} = brain;
-     tempSeg = semanticseg(brain,net);
+     figure(1)
+     imagesc(uint8(tempSeg(:,:,32)));
+     figure(2)
+     imagesc(brainpatch(:,:,32));
 
-    % Get the non-brain region mask from the test image.
-    volMask = vol{id}(:,:,:,1)==0;
-    % Set the non-brain region of the predicted label as background.
-    tempSeg(volMask) = classNames(1);
-    % Perform median filtering on the predicted label.
-    tempSeg = medfilt3(uint8(tempSeg)-1);
-    % Cast the filtered label to categorial.
-    tempSeg = categorical(tempSeg,pixelLabelID,classNames);
-    predictedLabels{id} = tempSeg;
-    id=id+1;
-end
-%% Compare Ground Truth Against Network Prediction
-% Select one of the test images to evaluate the accuracy of the semantic segmentation. 
-% Extract the first modality from the 4-D volumetric data and store this 3-D volume 
-% in the variable |vol3d|.
-
-volId = 2;
-vol3d = vol{volId}(:,:,:,1);
-%% 
-% Display in a montage the center slice of the ground truth and predicted labels 
-% along the depth direction.
-
-zID = size(vol3d,3)/2;
-zSliceGT = labeloverlay(vol3d(:,:,zID),groundTruthLabels{volId}(:,:,zID));
-zSlicePred = labeloverlay(vol3d(:,:,zID),predictedLabels{volId}(:,:,zID));
-
-figure
-title('Labeled Ground Truth (Left) vs. Network Prediction (Right)')
-montage({zSliceGT;zSlicePred},'Size',[1 2],'BorderSize',5) 
-%% 
-% Display the ground-truth labeled volume using the <docid:images_ref#mw_7a40592d-db0e-4bdb-9ba3-446bd1715151 
-% |labelvolshow|> function. Make the background fully transparent by setting the 
-% visibility of the background label (|1|) to |0|. Because the tumor is inside 
-% the brain tissue, make some of the brain voxels transparent, so that the tumor 
-% is visible. To make some brain voxels transparent, specify the volume threshold 
-% as a number in the range [0, 1]. All normalized volume intensities below this 
-% threshold value are fully transparent. This example sets the volume threshold 
-% as less than 1 so that some brain pixels remain visible, to give context to 
-% the spatial location of the tumor inside the brain.
-
-figure
-h1 = labelvolshow(groundTruthLabels{volId},vol3d);
-h1.LabelVisibility(1) = 0;
-h1.VolumeThreshold = 0.68;
-%% 
-% For the same volume, display the predicted labels.
-
-figure
-h2 = labelvolshow(predictedLabels{volId},vol3d);
-h2.LabelVisibility(1) = 0;
-h2.VolumeThreshold = 0.68;
-%% 
-% This image shows the result of displaying slices sequentially across the entire 
-% volume.
-% 
-% %% Quantify Segmentation Accuracy
-% Measure the segmentation accuracy using the <docid:images_ref#mw_1ee709d7-bf6b-4ac9-8f5d-e7caf72497d4 
-% |dice|> function. This function computes the Dice similarity coefficient between 
-% the predicted and ground truth segmentations.
-
-diceResult = zeros(length(voldsTest.Files),2);
-
-for j = 1:length(vol)
-    diceResult(j,:) = dice(groundTruthLabels{j},predictedLabels{j});
-end
-%% 
-% Calculate the average Dice score across the set of test volumes.
-
-meanDiceBackground = mean(diceResult(:,1));
-disp(['Average Dice score of background across ',num2str(j), ...
-    ' test volumes = ',num2str(meanDiceBackground)])
-meanDiceTumor = mean(diceResult(:,2));
-disp(['Average Dice score of tumor across ',num2str(j), ...
-    ' test volumes = ',num2str(meanDiceTumor)])
-%% 
-% The figure shows a <docid:stats_ug#bu180jd |boxplot|> that visualizes statistics 
-% about the Dice scores across the set of five sample test volumes. The red lines 
-% in the plot show the median Dice value for the classes. The upper and lower 
-% bounds of the blue box indicate the 25th and 75th percentiles, respectively. 
-% Black whiskers extend to the most extreme data points not considered outliers.
-% 
-% % 
-% If you have Statistics and Machine Learning Toolbox™, then you can use the 
-% |boxplot| function to visualize statistics about the Dice scores across all 
-% your test volumes. To create a |boxplot|, set the |createBoxplot| parameter 
-% in the following code to |true|.
-
-createBoxplot = true;
-if createBoxplot
-    figure
-    boxplot(diceResult)
-    title('Test Set Dice Accuracy')
-    xticklabels(classNames)
-    ylabel('Dice Coefficient')
-end
-%% Summary
-% This example shows how to create and train a 3-D U-Net network to perform 
-% 3-D brain tumor segmentation using the BraTS data set. The steps to train the 
-% network include:
