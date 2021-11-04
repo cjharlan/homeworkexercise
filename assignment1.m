@@ -52,32 +52,6 @@ load(fullfile(imageDir,'trained3DUNet','brainTumor3DUNet.mat'));
 %analyzeNetwork(net)
 
 % You can now use the U-Net to semantically segment brain tumors.
-%% Perform Segmentation of Test Data
-% load five volumes for testing.
-volLocTest = fullfile(imageDir,'sampleBraTSTestSet','imagesTest');
-%volLocTest = fullfile(niftiread('ICBM_Template.nii.gz'));
-lblLocTest = fullfile(imageDir,'sampleBraTSTestSet','labelsTest');
-classNames = ["background","tumor"];
-pixelLabelID = [0 1];
-
-%% 
-% Crop the central portion of the images and labels to size 128-by-128-by-128 
-% voxels by using the helper function |centerCropMatReader|. This function is 
-% attached to the example as a supporting file. The |voldsTest| variable stores 
-% the ground truth test images. The |pxdsTest| variable stores the ground truth 
-% labels.
-
-windowSize = [128 128 128];
-volReader = @(x) centerCropMatReader(x,windowSize);
-labelReader = @(x) centerCropMatReader(x,windowSize);
-voldsTest = imageDatastore(volLocTest, ...
-    'FileExtensions','.mat','ReadFcn',volReader);
-pxdsTest = pixelLabelDatastore(lblLocTest,classNames,pixelLabelID, ...
-    'FileExtensions','.mat','ReadFcn',labelReader);
-%% 
-% For each test image, add the ground truth image volumes and labels to cell 
-% arrays. Use the trained network with the <docid:vision_ref#mw_bbecb1af-a6c9-43d1-91f5-48607edc15d1 
-% |semanticseg|> function to predict the labels for each test volume.
 % 
 % After performing the segmentation, postprocess the predicted labels by labeling 
 % nonbrain voxels as |1|, corresponding to the background. Use the test images 
